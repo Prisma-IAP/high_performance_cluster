@@ -230,7 +230,7 @@ sudo systemctl start slurmctld
 
 # Passo 06: Configuração SLURM (Nodes)
 
-### Passo 05.01: Instalação do SLURM Client
+### Passo 06.01: Instalação do SLURM Client
 - Em cada um dos _nodes_ realize a instalação com o seguinte comando:
 ```shell
 sudo apt install slurmd slurm-client -y
@@ -251,7 +251,7 @@ sudo cp /clusterfs/slurm.conf /etc/slurm-llnl/slurm.conf
 sudo cp /clusterfs/cgroup* /etc/slurm-llnl
 ```
 
-### Passo 05.02: Testando o Munge
+### Passo 06.02: Testando o Munge
 - Para testar a chave Munge que foi copiada, inicie e ative-o com os seguintes comandos:
 ```shell
 sudo systemctl enable munge
@@ -284,11 +284,34 @@ LENGTH:           0
 ```
 ***Obs:*** Caso o processo não funcione, reinicie todos os _nodes_ e tente novamente
 
-### Passo 05.03: Ativação do SLURM
+### Passo 06.03: Ativação do SLURM
 - Ative o SLURM daemon:
 ```shell
 sudo systemctl enable slurmd
 sudo systemctl start slurmd
+```
+
+# Passo 07: Testando o SLURM
+- No _node01_, digite o comando ``sinfo`` para verificar o status atual de cada _node_. O status desejado deve estar da seguinte forma:
+```
+PARTITION  AVAIL  TIMELIMIT  NODES  STATE NODELIST
+mycluster*    up   infinite      3   idle node[02-04]
+```
+- Caso ocorra algum erro, tente atualizar o status de cada _node_ com o comando abaixo:
+```shell
+# substitua "node00" pelo nome do node desejado
+scontrol update nodename=node00 state=idle
+```
+
+- A seguir, realize um teste para que retorne os nomes dos _nodes_ com o comando ``hostname``. Para isso, digite o comando abaixo no _node01_
+```shell
+srun --nodes=3 hostname
+```
+- O resultado será mostrado da seguinte forma:
+```
+node02
+node03
+node04
 ```
 
 ## Troubleshooting
@@ -300,4 +323,10 @@ df -h
 - Forçar a montagem da pasta compartilhada: 
 ```shell
 mount -t nfs <nfs_server_ip>:<shared_folder_path> <mount_point>
+```
+
+- Forçar a alteração de status dos _nodes_:
+```shell
+# substitua "node00" pelo nome do node desejado
+scontrol update nodename=node00 state=idle
 ```
