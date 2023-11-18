@@ -27,7 +27,6 @@ sudo apt install ntpdate -y
 Ao término do processo, basta reiniciar cada computador.
 
 ## Passo 03: Preparação do armazenamento compartilhado
-
 - Conecte o pen drive no _node01_ que será definido como _Node Master_
 
 - Acesse o _node01_ através de outro terminal de forma remota
@@ -36,7 +35,7 @@ Ao término do processo, basta reiniciar cada computador.
 ```shell
 lsblk
 ```
-- Provavelmente o caminho do dispositivo será ``/dev/sda1``
+- Provavelmente o caminho do dispositivo será _/dev/sda1_
 
 - Realize a formatação do pen drive com o comando a seguir:
 ```shell
@@ -74,4 +73,65 @@ sudo mount -a
 ```shell
 sudo chown nobody.nogroup -R /clusterfs
 sudo chmod -R 766 /clusterfs
+```
+
+## Passo 04: Configuração NFS (Network File System)
+
+### Passo 04.01: Instalação do NFS Server
+- Realize o processo de instalação no ***node01*** com o comando a seguir:
+```shell
+sudo apt install nfs-kernel-server -y
+```
+
+- Edite o arquivo _/etc/exports_ e adicione a linha abaixo:
+```shell
+/clusterfs    <ip addr>(rw,sync,no_root_squash,no_subtree_check)
+```
+
+- Substitua o _<ip addr>_ pelo endereço IP inicial da sua rede, dessa forma, qualquer outro computador poderá acessar o ponto de montagem. Por exemplo, se os endereços da sua LAN forem no padrão _192.168.1.X_, o resultado será conforme abaixo:
+```shell
+/clusterfs 192.168.1.0/24(rw,sync,no_root_squash,no_subtree_check)
+```
+
+- Por fim, atualize o NFS kernel server com o comando a seguir:
+```shell
+sudo exportfs -a
+```
+
+### Passo 04.02: Instalação do NFS Client
+- Realize o processo de instalação nos outros ***nodes*** com o comando a seguir:
+```shell
+sudo apt install nfs-common -y
+```
+
+- Crie o mesmo novo diretório que será utilizado como ponto de montagem pelo ***node01***, para isso, siga as instruções abaixo:
+```shell
+sudo mkdir /clusterfs
+sudo chown nobody.nogroup -R /clusterfs
+sudo chmod 777 -R /clusterfs
+```
+
+- Edite o arquivo _/etc/fstab_ e adicione a seguinte linha:
+```shell
+<master node ip>:/clusterfs    /clusterfs    nfs    defaults   0 0
+```
+- A linha adicionada deve ficar conforme o exemplo abaixo:
+```shell
+192.168.0.20:/clusterfs    /clusterfs    nfs    defaults   0 0
+```
+
+- Por fim, para que seja possível criar arquivos e compartilhar entre todos os _nodes_, monte a unidade com o comando a seguir:
+```shell
+sudo mount -a
+```
+
+## Troubleshooting
+- Visualizar se a pasta compartilhada existe: 
+```shell
+df -h
+```
+
+- Forçar a montagem da pasta compartilhada: 
+```shell
+mount -t nfs <nfs_server_ip>:<shared_folder_path> <mount_point>
 ```
