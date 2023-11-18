@@ -125,7 +125,7 @@ sudo chmod 777 -R /clusterfs
 sudo mount -a
 ```
 
-# Passo 05: Configuração SLURM (Master Node)
+## Passo 05: Configuração SLURM (Master Node)
 
 ### Passo 05.01: Mapeamento dos hosts
 - Para facilitar o mapeamento dos _nodes_ é necessário editar o arquivo _/etc/hosts_ no _node01_ e adicionar as seguintes linhas:
@@ -228,7 +228,7 @@ sudo systemctl start slurmctld
 ### Passo 05.05: Reiniciar (Opcional)
 - Caso ocorra algum problema com a autenticação do Munge ou não houver comunicação com o SLURM Controller, basta reiniciar o _node01_
 
-# Passo 06: Configuração SLURM (Nodes)
+## Passo 06: Configuração SLURM (Nodes)
 
 ### Passo 06.01: Instalação do SLURM Client
 - Em cada um dos _nodes_ realize a instalação com o seguinte comando:
@@ -291,7 +291,7 @@ sudo systemctl enable slurmd
 sudo systemctl start slurmd
 ```
 
-# Passo 07: Testando o SLURM
+## Passo 07: Testando o SLURM
 - No _node01_, digite o comando ``sinfo`` para verificar o status atual de cada _node_. O status desejado deve estar da seguinte forma:
 ```
 PARTITION  AVAIL  TIMELIMIT  NODES  STATE NODELIST
