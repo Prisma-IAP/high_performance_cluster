@@ -84,7 +84,7 @@ sudo apt install nfs-kernel-server -y
 ```
 
 - Edite o arquivo _/etc/exports_ e adicione a linha abaixo:
-```shell
+```
 /clusterfs    <ip addr>(rw,sync,no_root_squash,no_subtree_check)
 ```
 
@@ -112,7 +112,7 @@ sudo chmod 777 -R /clusterfs
 ```
 
 - Edite o arquivo _/etc/fstab_ e adicione a seguinte linha:
-```shell
+```
 <master node ip>:/clusterfs    /clusterfs    nfs    defaults   0 0
 ```
 - A linha adicionada deve ficar conforme o exemplo abaixo:
@@ -123,6 +123,172 @@ sudo chmod 777 -R /clusterfs
 - Por fim, para que seja possível criar arquivos e compartilhar entre todos os _nodes_, monte a unidade com o comando a seguir:
 ```shell
 sudo mount -a
+```
+
+# Passo 05: Configuração SLURM (Master Node)
+
+### Passo 05.01: Mapeamento dos hosts
+- Para facilitar o mapeamento dos _nodes_ é necessário editar o arquivo _/etc/hosts_ no _node01_ e adicionar as seguintes linhas:
+```
+<ip addr of node02>      node02
+<ip addr of node03>      node03
+<ip addr of node04>      node04
+```
+
+### Passo 05.02: Instalação do SLURM
+- No _node01_ realize a instalação com o seguinte comando:
+```shell
+sudo apt install slurm-wlm -y
+```
+
+- Faça uma cópia, extraia os arquivos base com os comandos a seguir:
+```shell
+cd /etc/slurm-llnl
+cp /usr/share/doc/slurm-client/examples/slurm.conf.simple.gz .
+gzip -d slurm.conf.simple.gz
+mv slurm.conf.simple slurm.conf
+```
+
+- Edite o arquivo _/etc/slurm-llnl/slurm.conf_, adicionando as informações abaixo:
+```shell
+ControlMachine=node01
+ControlAddr=192.168.0.20
+
+SelectType=select/cons_res
+SelectTypeParameters=CR_Core
+ClusterName=HPCluster
+
+NodeName=node01 NodeAddr=192.168.0.20 CPUs=4 State=UNKNOWN
+NodeName=node02 NodeAddr=192.168.0.21 CPUs=4 State=UNKNOWN
+NodeName=node03 NodeAddr=192.168.0.22 CPUs=4 State=UNKNOWN
+
+PartitionName=mycluster Nodes=node[02-03] Default=YES MaxTime=INFINITE State=UP
+```
+***Obs:*** Dependendo da versão do _SLURM_ as configurações de _ControlMachine_ e _ControlAddr_ deverão ser substituídas pela seguinte configuração:
+```shell
+SlurmctldHost=node01(<ip addr of node01>)
+# e.g.: node01(192.168.1.14)
+```
+
+- Crie o arquivo _/etc/slurm-llnl/cgroup.conf_ com as seguintes configurações:
+```shell
+CgroupMountpoint="/sys/fs/cgroup"
+CgroupAutomount=yes
+CgroupReleaseAgentDir="/etc/slurm-llnl/cgroup"
+AllowedDevicesFile="/etc/slurm-llnl/cgroup_allowed_devices_file.conf"
+ConstrainCores=no
+TaskAffinity=no
+ConstrainRAMSpace=yes
+ConstrainSwapSpace=no
+ConstrainDevices=no
+AllowedRamSpace=100
+AllowedSwapSpace=0
+MaxRAMPercent=100
+MaxSwapPercent=100
+MinRAMSpace=30
+```
+
+- Por fim, crie o arquivo */etc/slurm-llnl/cgroup_allowed_devices_file.conf* e adicione as seguintes informações:
+```shell
+/dev/null
+/dev/urandom
+/dev/zero
+/dev/sda*
+/dev/cpu/*/*
+/dev/pts/*
+/clusterfs*
+```
+
+### Passo 05.03: Copiar os arquivos de configuração para a pasta compartilhada
+- Realize os comandos a seguir para copiar os arquivos de configuração e a chave de autenticação do _Munge_
+```shell
+sudo cp slurm.conf cgroup.conf cgroup_allowed_devices_file.conf /clusterfs
+sudo cp /etc/munge/munge.key /clusterfs
+```
+
+### Passo 05.04: Iniciar e habilitar os serviços do SLURM
+- Ative o Munge:
+```shell
+sudo systemctl enable munge
+sudo systemctl start munge
+```
+
+- Ative o SLURM daemon:
+```shell
+sudo systemctl enable slurmd
+sudo systemctl start slurmd
+```
+
+- Ative o control daemon:
+```shell
+sudo systemctl enable slurmctld
+sudo systemctl start slurmctld
+```
+
+### Passo 05.05: Reiniciar (Opcional)
+- Caso ocorra algum problema com a autenticação do Munge ou não houver comunicação com o SLURM Controller, basta reiniciar o _node01_
+
+# Passo 06: Configuração SLURM (Nodes)
+
+### Passo 05.01: Instalação do SLURM Client
+- Em cada um dos _nodes_ realize a instalação com o seguinte comando:
+```shell
+sudo apt install slurmd slurm-client -y
+```
+
+- Para facilitar o mapeamento dos _nodes_ da mesma forma que foi realizado no _node01_, para isso, edite o arquivo _/etc/hosts_ e adicione as seguintes linhas:
+```shell
+#node02:/etc/hosts
+<ip addr of node01>      node01
+<ip addr of node03>      node03
+<ip addr of node04>      node04
+```
+
+- Copie os arquivos de configuração que foram compartilhados em _/clusterfs_, para isso siga os seguintes passos:
+```shell
+sudo cp /clusterfs/munge.key /etc/munge/munge.key
+sudo cp /clusterfs/slurm.conf /etc/slurm-llnl/slurm.conf
+sudo cp /clusterfs/cgroup* /etc/slurm-llnl
+```
+
+### Passo 05.02: Testando o Munge
+- Para testar a chave Munge que foi copiada, inicie e ative-o com os seguintes comandos:
+```shell
+sudo systemctl enable munge
+sudo systemctl start munge
+```
+
+- Acesse cada um dos _nodes_, realizando o comando abaixo para validar se a autenticação Munge, que foi configurada no _node01_ está funcionando corretamente
+```shell
+# conectando em um Raspberry
+ssh pi@node01 munge -n | unmunge
+
+# conectando em um Orange
+ssh root@node01 munge -n | unmunge
+```
+
+- Caso a autenticação funcione, o resultado será parecido com o exemplo abaixo:
+```
+root@node01's password:
+STATUS:           Success (0)
+ENCODE_HOST:      node01 (192.168.0.20)
+ENCODE_TIME:      2023-11-18 02:45:52 -0300 (1700286352)
+DECODE_TIME:      2023-11-18 02:45:52 -0300 (1700286352)
+TTL:              300
+CIPHER:           aes128 (4)
+MAC:              sha256 (5)
+ZIP:              none (0)
+UID:              root (0)
+GID:              root (0)
+LENGTH:           0
+```
+***Obs:*** Caso o processo não funcione, reinicie todos os _nodes_ e tente novamente
+
+### Passo 05.03: Ativação do SLURM
+- Ative o SLURM daemon:
+```shell
+sudo systemctl enable slurmd
+sudo systemctl start slurmd
 ```
 
 ## Troubleshooting
