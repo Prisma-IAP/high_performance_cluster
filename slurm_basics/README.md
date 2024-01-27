@@ -4,7 +4,16 @@
 ```
 $ sinfo
 PARTITION   AVAIL   TIMELIMIT   NODES   STATE   NODELIST
-mycluster*     up      infinite    3       idle     node[1–3]
+mycluster*     up    infinite       3    idle   node[01–03]
+```
+
+- ***scontrol***: com este comando é possível visualizar o status atual do job que está sendo executado, além de atualizar o status dos nodes caso estejam em algum status diferente de *idle*
+```shell
+# atualiza o status dos nós que compõem o cluster
+scontrol update nodename=node[02-03] state=idle
+
+# disponibiliza o status atual do job
+scontrol show job <JOBID>
 ```
 
 - ***srun***: é utilizado para executar um comando diretamente em quantos _nodes_/núcleos você desejar
